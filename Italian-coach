@@ -1,0 +1,3 @@
+cd ~/Projects/italian-coach
+git remote add origin https://github.com/jaibee/italian-coach.git
+git push -u origin main
