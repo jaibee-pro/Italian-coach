@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Italian Coach">
+<title>Italian Coach — NL → IT</title>
+<style>
+  :root{
+    --bg:#0e1a12; --card:#16241b; --card2:#1c2f22; --accent:#2e9e5b;
+    --accent2:#e8b13c; --text:#eef5ef; --muted:#9db3a3; --err:#e06060;
+    --radius:16px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    min-height:100vh; padding:env(safe-area-inset-top) 14px calc(env(safe-area-inset-bottom) + 20px);
+  }
+  header{display:flex; align-items:center; justify-content:space-between; padding:14px 2px 6px;}
+  h1{font-size:1.15rem; margin:0; font-weight:700; letter-spacing:.3px;}
+  h1 span{color:var(--accent2);}
+  #settingsBtn{background:none;border:none;color:var(--muted);font-size:1.3rem;padding:6px;cursor:pointer;}
+  .card{background:var(--card); border-radius:var(--radius); padding:14px; margin-top:12px;}
+  .hint{color:var(--muted); font-size:.85rem; margin:4px 0 0; line-height:1.45;}
+  b.kw{color:var(--accent2);}
+
+  #micBtn{
+    display:block; width:112px; height:112px; margin:18px auto 6px; border-radius:50%;
+    border:none; background:var(--accent); color:#fff; font-size:2.4rem; cursor:pointer;
+    box-shadow:0 0 0 0 rgba(46,158,91,.5); transition:background .2s;
+  }
+  #micBtn.listening{background:#c8442e; animation:pulse 1.6s infinite;}
+  @keyframes pulse{
+    0%{box-shadow:0 0 0 0 rgba(200,68,46,.55);}
+    70%{box-shadow:0 0 0 22px rgba(200,68,46,0);}
+    100%{box-shadow:0 0 0 0 rgba(200,68,46,0);}
+  }
+  #micLabel{text-align:center; color:var(--muted); font-size:.9rem; margin-bottom:4px;}
+  #status{text-align:center; font-size:.85rem; min-height:1.2em; color:var(--accent2);}
+  #error{color:var(--err); font-size:.85rem; text-align:center; min-height:1.2em; margin-top:4px;}
+
+  #transcript{min-height:2.4em; font-size:1.05rem; line-height:1.5;}
+  #transcript .interim{color:var(--muted); font-style:italic;}
+  .label{font-size:.72rem; text-transform:uppercase; letter-spacing:1px; color:var(--muted); margin-bottom:6px;}
+
+  .pair{background:var(--card2); border-radius:12px; padding:12px; margin-top:10px;}
+  .pair .nl{color:var(--muted); font-size:.92rem;}
+  .pair .it{font-size:1.25rem; font-weight:600; margin-top:4px; color:#fff;}
+  .pair .row{display:flex; justify-content:space-between; align-items:center; gap:8px;}
+  .speakBtn{background:var(--accent); border:none; color:#fff; border-radius:10px;
+    padding:8px 14px; font-size:1rem; cursor:pointer; flex-shrink:0;}
+
+  #manualRow{display:flex; gap:8px; margin-top:8px;}
+  #manualInput{flex:1; background:var(--card2); border:1px solid #2a4232; color:var(--text);
+    border-radius:10px; padding:10px; font-size:1rem;}
+  #manualGo{background:var(--accent2); border:none; color:#1a1a1a; font-weight:700;
+    border-radius:10px; padding:10px 16px; font-size:1rem; cursor:pointer;}
+
+  #settings{display:none;}
+  #settings.open{display:block;}
+  #settings input, #settings select{width:100%; background:var(--card2); border:1px solid #2a4232;
+    color:var(--text); border-radius:10px; padding:10px; font-size:1rem; margin-top:6px;}
+  #settings label{font-size:.85rem; color:var(--muted); display:block; margin-top:10px;}
+  #clearHist{background:none; border:1px solid var(--err); color:var(--err);
+    border-radius:10px; padding:8px 12px; margin-top:14px; font-size:.85rem; cursor:pointer;}
+
+  #history .pair{margin-top:8px;}
+  .empty{color:var(--muted); font-size:.9rem;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🇳🇱 Italian <span>Coach</span> 🇮🇹</h1>
+  <button id="settingsBtn" aria-label="Instellingen">⚙️</button>
+</header>
+
+<div id="settings" class="card">
+  <div class="label">Instellingen</div>
+  <label>E-mail (optioneel — verhoogt de gratis vertaallimiet van MyMemory)
+    <input type="email" id="emailInput" placeholder="jij@voorbeeld.nl" autocomplete="email">
+  </label>
+  <label>Spreeksnelheid Italiaans
+    <select id="rateInput">
+      <option value="0.75">Langzaam (0.75×)</option>
+      <option value="0.9" selected>Rustig (0.9×)</option>
+      <option value="1">Normaal (1×)</option>
+    </select>
+  </label>
+  <button id="clearHist">Geschiedenis wissen</button>
+</div>
+
+<div class="card" style="text-align:center;">
+  <button id="micBtn" aria-label="Start luisteren">🎙️</button>
+  <div id="micLabel">Tik om te starten</div>
+  <div id="status"></div>
+  <div id="error"></div>
+  <p class="hint">Spreek een zin in het Nederlands en zeg daarna <b class="kw">“vertaal”</b>.
+  De app toont en spreekt de Italiaanse vertaling.</p>
+</div>
+
+<div class="card">
+  <div class="label">Live transcript (Nederlands)</div>
+  <div id="transcript"><span class="empty">Nog niets gehoord…</span></div>
+</div>
+
+<div class="card">
+  <div class="label">Laatste vertaling</div>
+  <div id="result"><span class="empty">Nog geen vertaling.</span></div>
+  <div id="manualRow">
+    <input id="manualInput" type="text" placeholder="Of typ hier een NL-zin…" autocomplete="off">
+    <button id="manualGo">→ IT</button>
+  </div>
+</div>
+
+<div class="card">
+  <div class="label">Geschiedenis</div>
+  <div id="history"><span class="empty">Leeg.</span></div>
+</div>
+
+<script>
+"use strict";
+/* ===================== Italian Coach =====================
+   Flow: listen (nl-NL) → keyword "vertaal" in a final result
+   → strip keyword → translate buffered sentence via MyMemory
+   (nl|it, free, no key) → display + speak with it-IT voice.
+   iOS notes: recognition auto-restarts in onend (iOS ignores
+   continuous); TTS primed by a user gesture; mic paused while
+   speaking so the app doesn't hear itself.
+   ========================================================== */
+
+const $ = id => document.getElementById(id);
+const KEYWORD = /vertaal/i;
+
+/* ---------- persistent settings & history (fail-safe) ---------- */
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v===null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+let history = store.get("ic_history", []);
+$("emailInput").value = store.get("ic_email", "");
+$("rateInput").value  = store.get("ic_rate", "0.9");
+$("emailInput").addEventListener("change", e => store.set("ic_email", e.target.value.trim()));
+$("rateInput").addEventListener("change", e => store.set("ic_rate", e.target.value));
+$("settingsBtn").addEventListener("click", () => $("settings").classList.toggle("open"));
+$("clearHist").addEventListener("click", () => { history = []; store.set("ic_history", history); renderHistory(); });
+
+/* ---------------- speech synthesis (Italian out) ---------------- */
+let itVoice = null;
+function pickVoice(){
+  const vs = speechSynthesis.getVoices();
+  itVoice = vs.find(v => /^it(-|_)/i.test(v.lang)) || vs.find(v => v.lang.toLowerCase().startsWith("it")) || null;
+}
+if ("speechSynthesis" in window){
+  pickVoice();
+  speechSynthesis.onvoiceschanged = pickVoice;
+}
+function speakItalian(text, onDone){
+  if (!("speechSynthesis" in window)){ if(onDone) onDone(); return; }
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = "it-IT";
+  if (itVoice) u.voice = itVoice;
+  u.rate = parseFloat(store.get("ic_rate","0.9")) || 0.9;
+  u.onend = () => { if(onDone) onDone(); };
+  u.onerror = () => { if(onDone) onDone(); };
+  speechSynthesis.speak(u);
+}
+
+/* --------------------- translation (MyMemory) ------------------- */
+async function translateNLtoIT(text){
+  const email = store.get("ic_email","");
+  let url = "https://api.mymemory.translated.net/get?q=" + encodeURIComponent(text) +
+            "&langpair=nl|it";
+  if (email) url += "&de=" + encodeURIComponent(email);
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Netwerkfout (" + res.status + ")");
+  const data = await res.json();
+  if (data.responseStatus === 200 && data.responseData && data.responseData.translatedText){
+    return data.responseData.translatedText;
+  }
+  if (data.responseStatus === 403 || /LIMIT/i.test(String(data.responseDetails||""))){
+    throw new Error("Gratis daglimiet bereikt. Vul je e-mail in bij ⚙️ voor een hogere limiet.");
+  }
+  throw new Error(String(data.responseDetails || "Vertaling mislukt."));
+}
+
+/* -------------------- speech recognition (nl-NL) ----------------- */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec = null;
+let wantListening = false;   // user intent
+let busy = false;            // translating / speaking
+let buffer = "";             // finalized Dutch text since last translation
+
+function setStatus(t){ $("status").textContent = t; }
+function setError(t){ $("error").textContent = t || ""; }
+
+function renderTranscript(interim){
+  const el = $("transcript");
+  if (!buffer && !interim){ el.innerHTML = '<span class="empty">Nog niets gehoord…</span>'; return; }
+  el.innerHTML = escapeHtml(buffer) + (interim ? ' <span class="interim">' + escapeHtml(interim) + "</span>" : "");
+}
+function escapeHtml(s){ return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function buildRecognizer(){
+  const r = new SR();
+  r.lang = "nl-NL";
+  r.continuous = true;        // iOS may ignore this → onend restarts
+  r.interimResults = true;
+  r.onresult = (ev) => {
+    let interim = "";
+    for (let i = ev.resultIndex; i < ev.results.length; i++){
+      const t = ev.results[i][0].transcript;
+      if (ev.results[i].isFinal) buffer += (buffer ? " " : "") + t.trim();
+      else interim += t;
+    }
+    renderTranscript(interim);
+    if (KEYWORD.test(buffer)) triggerTranslation();
+  };
+  r.onerror = (ev) => {
+    if (ev.error === "not-allowed" || ev.error === "service-not-allowed"){
+      wantListening = false;
+      setError("Geen microfoontoegang. Sta de microfoon toe in Safari-instellingen en controleer of Siri & Dicteren aanstaat.");
+      updateMicUI();
+    } else if (ev.error !== "no-speech" && ev.error !== "aborted"){
+      setError("Spraakfout: " + ev.error);
+    }
+  };
+  r.onend = () => {
+    // iOS stops recognition often; restart while the user still wants to listen.
+    if (wantListening && !busy){
+      setTimeout(() => { try{ rec.start(); }catch(e){} }, 250);
+    }
+  };
+  return r;
+}
+
+function startListening(){
+  setError("");
+  if (!SR){
+    setError("Spraakherkenning wordt niet ondersteund in deze browser. Gebruik Safari op iPhone, of typ hieronder.");
+    return;
+  }
+  // Prime iOS TTS with a user gesture so later speech is allowed.
+  try{ const u = new SpeechSynthesisUtterance(""); speechSynthesis.speak(u); }catch(e){}
+  rec = rec || buildRecognizer();
+  wantListening = true;
+  buffer = "";
+  renderTranscript("");
+  try{ rec.start(); }catch(e){}
+  setStatus("Luistert… zeg je zin en dan “vertaal”.");
+  updateMicUI();
+}
+function stopListening(){
+  wantListening = false;
+  if (rec){ try{ rec.stop(); }catch(e){} }
+  setStatus("");
+  updateMicUI();
+}
+function updateMicUI(){
+  $("micBtn").classList.toggle("listening", wantListening);
+  $("micBtn").textContent = wantListening ? "⏹" : "🎙️";
+  $("micLabel").textContent = wantListening ? "Tik om te stoppen" : "Tik om te starten";
+}
+$("micBtn").addEventListener("click", () => wantListening ? stopListening() : startListening());
+
+/* ------------------------ core trigger --------------------------- */
+async function triggerTranslation(){
+  if (busy) return;
+  const sentence = buffer.replace(KEYWORD, " ").replace(/\s+/g, " ").trim()
+                         .replace(/[.,;:!?]+$/, "");
+  buffer = "";
+  renderTranscript("");
+  if (!sentence){ setStatus("Alleen “vertaal” gehoord — zeg eerst een zin."); return; }
+  await runTranslation(sentence);
+}
+
+async function runTranslation(sentence){
+  busy = true;
+  setError("");
+  setStatus("Vertalen…");
+  // Pause the mic so the app doesn't transcribe its own Italian voice.
+  if (rec){ try{ rec.stop(); }catch(e){} }
+  try{
+    const italian = await translateNLtoIT(sentence);
+    showResult(sentence, italian);
+    history.unshift({ nl: sentence, it: italian, t: Date.now() });
+    history = history.slice(0, 50);
+    store.set("ic_history", history);
+    renderHistory();
+    setStatus("🔊 " + italian);
+    speakItalian(italian, () => {
+      busy = false;
+      setStatus(wantListening ? "Luistert… zeg je zin en dan “vertaal”." : "");
+      if (wantListening){ try{ rec.start(); }catch(e){} }
+    });
+  }catch(err){
+    busy = false;
+    setStatus("");
+    setError(err.message || String(err));
+    if (wantListening){ try{ rec.start(); }catch(e){} }
+  }
+}
+
+function pairHtml(nl, it){
+  return '<div class="row"><div><div class="nl">' + escapeHtml(nl) + '</div>' +
+         '<div class="it">' + escapeHtml(it) + '</div></div>' +
+         '<button class="speakBtn" data-it="' + escapeHtml(it) + '">🔊</button></div>';
+}
+function showResult(nl, it){
+  $("result").innerHTML = '<div class="pair">' + pairHtml(nl, it) + "</div>";
+}
+function renderHistory(){
+  const el = $("history");
+  if (!history.length){ el.innerHTML = '<span class="empty">Leeg.</span>'; return; }
+  el.innerHTML = history.map(h => '<div class="pair">' + pairHtml(h.nl, h.it) + "</div>").join("");
+}
+document.addEventListener("click", (e) => {
+  const b = e.target.closest(".speakBtn");
+  if (b) speakItalian(b.dataset.it);
+});
+
+/* ------------------------ manual fallback ------------------------ */
+$("manualGo").addEventListener("click", () => {
+  const s = $("manualInput").value.trim();
+  if (s){ $("manualInput").value = ""; runTranslation(s); }
+});
+$("manualInput").addEventListener("keydown", (e) => { if (e.key === "Enter") $("manualGo").click(); });
+
+renderHistory();
+</script>
+</body>
+</html>
